@@ -1,0 +1,210 @@
+import csv
+import pandas as pd
+import numpy as np
+import os
+import sys
+from scipy import stats
+from matplotlib.ticker import FormatStrFormatter
+import matplotlib.pyplot as plt
+
+#define exception
+class Not_Sorted(Exception):
+    def __init__(self):
+        Exception.__init__(self,"well, you need to sort the time")
+class Name_Not_Exist(Exception):
+    def __init__(self):
+        Exception.__init__(self,"well, the name you input don't match")
+#check the data set
+def Check_exam(df,z=[]):
+    if not z:
+        z.append(input('Enter Time name:..'))#input name
+        z.append(input('Enter Price name:..'))
+        z.append(input('Enter BuySell name:..'))
+        z.append(input('Enter Share name:..'))
+    for col in z:
+        if col not in df.columns.tolist():
+            raise Name_Not_Exist#raise error
+        else:
+            print(col+' Exist!')
+    if not all(df['time'][i+1]>=df['time'][i] for i in range(len(df['time'])-1)):
+        raise Not_Sorted
+    else:
+        print('Time is Sorted!')
+   
+#Markout
+def Markout(Second=0.1,time=None,price=None):
+    index_dict = {'current': 0}
+    length = len(time)
+    S = np.zeros(length)
+    for i in range(length):
+        if index_dict['current'] < length:
+            while float(time[i]) >= float(time[index_dict['current']]) - Second:
+                # print(index_dict['current'])
+                if index_dict['current'] < (length - 1):
+                    index_dict['current'] += 1
+                else:
+                    break
+
+            S[i] = float(price[index_dict['current'] - 1])
+        else:
+            S[i] = float(price[index_dict['current']])
+    return S
+#Process file
+def Process_file(filePath='E:/HFT_Trades_PerStockDay/AAPL/200801/AAPL_20080102.csv', Time_col_name='time',
+                 Price_col_name='price',BuySell_side_name='buysell',Share_name='shares',time_list=[0.1,0.2,0.5
+                                                                                                   ,1,2,5,10,20,50
+                                                                                                   ,100,200,500]):
+    time = []
+    price = []
+    BuySell=[]
+    share=[]
+    type_demand=[]
+
+    with open(filePath, 'r+') as file:
+        df = csv.DictReader(file)
+        for row in df:
+            time.append(row[Time_col_name])
+            price.append(row[Price_col_name])
+            BuySell.append(row[BuySell_side_name])
+            share.append(row[Share_name])
+            type_demand.append('{}{}'.format(row['type_demand'],row['type_supply']))
+    BuySell=list(map(lambda x:1 if x=='B' else 0,BuySell))
+    BuySell=list(map(lambda x:2*x-1,BuySell))
+    price=list(map(lambda x:float(x),price))
+    BuySell=list(map(lambda x:float(x),BuySell))
+    share=list(map(lambda x:float(x),share))
+    # Weight=share/np.sum(share)
+    if 0.1 in time_list:        #0.1 second is default
+        S0_1=Markout(0.1,time,price)
+        S0_1 = (-(price - S0_1) * BuySell) * share
+    else: S0_1=[0]*len(price)
+    if 0.2 in time_list:
+        S0_2=Markout(0.2,time,price)
+        S0_2 = (-(price - S0_2) * BuySell) * share
+    else: S0_2=[0]*len(price)
+    if 0.5 in time_list:
+        S0_5=Markout(0.5,time,price)
+        S0_5 = (-(price - S0_5) * BuySell) * share
+    else: S0_5=[0]*len(price)
+    if 1 in time_list:
+        S1=Markout(1,time,price)
+        S1 = (-(price - S1) * BuySell) * share
+    else: S1=[0]*len(price)
+    if 2 in time_list:
+        S2=Markout(2,time,price)
+        S2 = (-(price - S2) * BuySell) * share
+    else: S2=[0]*len(price)
+    if 5 in time_list:
+        S5=Markout(5,time,price)
+        S5 = (-(price - S5) * BuySell) * share
+    else: S5=[0]*len(price)
+    if 10 in time_list:
+        S10=Markout(10,time,price)
+        S10 = (-(price - S10) * BuySell) * share
+    else: S10=[0]*len(price)
+    if 20 in time_list:
+        S20=Markout(20,time,price)
+        S20 = (-(price - S20) * BuySell) * share
+    else: S20=[0]*len(price)
+    if 50 in time_list:
+        S50=Markout(50,time,price)
+        S50 = (-(price - S50) * BuySell) * share
+    else: S50=[0]*len(price)
+    if 100 in time_list:
+        S100=Markout(100,time,price)
+        S100 = (-(price - S100) * BuySell) * share
+    else: S100=[0]*len(price)
+    if 200 in time_list:
+        S200=Markout(200,time,price)
+        S200 = (-(price - S200) * BuySell) * share
+    else: S200=[0]*len(price)
+    if 500 in time_list:
+        S500=Markout(500,time,price)
+        S500 = (-(price - S500) * BuySell) * share
+    else: S500=[0]*len(price)
+    df=pd.DataFrame({'time':time,'price':price,'0.1S':S0_1,'0.2S':S0_2,'0.5S':S0_5,
+                     '1S':S1,'2S':S2,'5S':S5,'10S':S10,'20S':S20,'50S':S50,'100S':S100,
+                     '200S':S200,'500S':S500,'BuySell':BuySell,'Share':share,'01Buy':type_demand})
+    return df    
+ 
+#batch processing
+
+def read_check_output(path='D:/HFT_Trades_PerStockDay'):
+    ticker=os.listdir(path)
+    z=[]
+    z.append(input('Enter Time name:..'))
+    z.append(input('Enter Price name:..'))
+    z.append(input('Enter BuySell name:..'))
+    z.append(input('Enter Share name:..'))
+    for tick in ticker:
+        for date in os.listdir('{}/{}'.format(path, tick)):
+            for file in os.listdir('{}/{}/{}'.format(path, tick, date)):
+                if not os.path.exists('d:/{}/{}'.format(tick, file)):
+                    if np.random.choice([True, False], 1, [0.01, 0.99])[0]:
+                        df = pd.read_csv(path + '/' + tick + '/' + date + '/' + file, nrows=100)
+                        Check_exam(df, z)
+                    df = Process_file(filePath=path + '/' + tick + '/' + date + '/' + file,Time_col_name=z[0],Price_col_name=z[1]
+                                      ,BuySell_side_name=z[2],Share_name=z[3])
+                    df1 = df.groupby('01Buy').sum()[
+                        ['0.1S', '0.2S', '0.5S', '1S', '2S', '5S', '10S', '20S', '50S', '100S', '200S', '500S','Share']]
+                    if os.path.exists('d:/{}'.format(tick)):
+                        df1.to_csv('d:/{}/{}'.format(tick, file))
+                    else:
+                        os.makedirs('d:{}'.format(tick))
+                        df1.to_csv('d:/{}/{}'.format(tick, file))
+                    print('write...{}/{}'.format(tick, file))
+                else:
+                    print(path + '/' + tick + '/' + date + '/' + file,'exist!!')
+                    continue
+ #summary
+
+def summary(path='D:/HFT_Trades_PerStockDay'):
+    HHindex = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=float)
+
+    HNindex = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=float)
+    NHindex = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=float)
+    NNindex = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=float)
+    index = {'num': 0}
+    Ticker_index = {}
+    ticker=os.listdir(path)
+    Total_Share={'HH': 0, 'HN': 0, 'NH': 0, 'NN': 0}
+    for tick in ticker:
+        Ticker_index[tick]={'HH':0,'HN':0,'NH':0,'NN':0}
+        Tick_Share = {'HH': 0, 'HN': 0, 'NH': 0, 'NN': 0}
+        for file in os.listdir('d:/{}'.format(tick)):
+            if (os.path.exists('d:/{}/{}'.format(tick,file))) & (not index.get((tick,file))):
+                index[(tick,file)]=True
+                index['num']+=1
+                with open('d:/{}/{}'.format(tick,file)) as file1:
+                    print('process {} {}'.format(tick,file))
+                    df=csv.reader(file1)
+                    next(df, None)
+                    for line in df:
+                        if line[0]=='HH':
+                            Ticker_index[tick]['HH']+=float(line[10])
+                            # print(line[-1])
+                            HHindex+=np.array(list(map(float,line[1:-1])))
+                            Tick_Share['HH']+=float(line[-1])
+                            Total_Share['HH'] += float(line[-1])
+                        if line[0]=='NH':
+                            Ticker_index[tick]['NH'] += float(line[10])
+                            NHindex+=np.array(list(map(float,line[1:-1])))
+                            Tick_Share['NH'] += float(line[-1])
+                            Total_Share['NH'] += float(line[-1])
+                        if line[0]=='HN':
+                            Ticker_index[tick]['HN'] += float(line[10])
+                            HNindex+=np.array(list(map(float,line[1:-1])))
+                            Tick_Share['HN'] += float(line[-1])
+                            Total_Share['HN'] += float(line[-1])
+                        if line[0]=='NN':
+                            Ticker_index[tick]['NN'] += float(line[10])
+                            NNindex+=np.array(list(map(float,line[1:-1])))
+                            Tick_Share['NN'] += float(line[-1])
+                            Total_Share['NN'] += float(line[-1])
+        Ticker_index[tick]['HH']=Ticker_index[tick]['HH']/Tick_Share['HH']
+        Ticker_index[tick]['NH'] = Ticker_index[tick]['NH'] / Tick_Share['NH']
+        Ticker_index[tick]['HN'] = Ticker_index[tick]['HN'] / Tick_Share['HN']
+        Ticker_index[tick]['NN'] = Ticker_index[tick]['NN'] / Tick_Share['NN']
+    return Ticker_index,index,HHindex/Total_Share['HH'],HNindex/Total_Share['HN'],\
+           NHindex/Total_Share['NH'],NNindex/Total_Share['NN']         
+           
